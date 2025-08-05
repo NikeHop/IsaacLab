@@ -36,6 +36,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 USER root
 
+
 # Install dependencies and remove cache
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -44,9 +45,14 @@ RUN --mount=type=cache,target=/var/cache/apt \
     git \
     libglib2.0-0 \
     ncurses-term \
+    openssh-server \
     wget && \
     apt -y autoremove && apt clean autoclean && \
     rm -rf /var/lib/apt/lists/*
+
+# Setup ssh 
+RUN mkdir -p ~/.ssh && \
+    chmod 700 ~/.ssh && \
 
 # Copy the Isaac Lab directory (files to exclude are defined in .dockerignore)
 COPY ../ ${ISAACLAB_PATH}
@@ -106,3 +112,5 @@ RUN echo "export ISAACLAB_PATH=${ISAACLAB_PATH}" >> ${HOME}/.bashrc && \
 # make working directory as the Isaac Lab directory
 # this is the default directory when the container is run
 WORKDIR ${ISAACLAB_PATH}
+
+

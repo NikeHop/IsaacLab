@@ -31,7 +31,7 @@ import isaaclab_tasks.manager_based.manipulation.reach.mdp as mdp
 
 
 @configclass
-class ReachSceneCfg(InteractiveSceneCfg):
+class ReachWithCameraSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a robotic arm."""
 
     # world
@@ -46,7 +46,9 @@ class ReachSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.UsdFileCfg(
             usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/SeattleLabTable/table_instanceable.usd",
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)),
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=(0.55, 0.0, 0.0), rot=(0.70711, 0.0, 0.0, 0.70711)
+        ),
     )
 
     # robots
@@ -58,12 +60,18 @@ class ReachSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
 
-    # Camera 
-    static_camera = CameraCfg()
+    # Camera
+    static_camera = CameraCfg(
+        prim_path="{ENV_REGEX_NS}/static_camera",
+        update_period=0.1,
+        width=0,
+        height=0,
+        data_types=["rgb", "depth"],
+        offset=CameraCfg.OffsetCfg(pos=(-2, 0.0, 2), rot=(0.5, -0.5, 0.5, -0.5), convention="ros"),
+    )
 
     # Gripper Camera
-    gripper_camera = CameraCfg()
-
+    gripper_camera = CameraCfg(prim_path="{ENV_REGEX_NS}/Robot/gripper_camera")
 
 
 ##
@@ -108,9 +116,15 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
+        joint_pos = ObsTerm(
+            func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01)
+        )
+        joint_vel = ObsTerm(
+            func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01)
+        )
+        pose_command = ObsTerm(
+            func=mdp.generated_commands, params={"command_name": "ee_pose"}
+        )
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -143,17 +157,27 @@ class RewardsCfg:
     end_effector_position_tracking = RewTerm(
         func=mdp.position_command_error,
         weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
+            "command_name": "ee_pose",
+        },
     )
     end_effector_position_tracking_fine_grained = RewTerm(
         func=mdp.position_command_error_tanh,
         weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "std": 0.1, "command_name": "ee_pose"},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
+            "std": 0.1,
+            "command_name": "ee_pose",
+        },
     )
     end_effector_orientation_tracking = RewTerm(
         func=mdp.orientation_command_error,
         weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=MISSING),
+            "command_name": "ee_pose",
+        },
     )
 
     # action penalty
@@ -177,11 +201,13 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.005, "num_steps": 4500}
+        func=mdp.modify_reward_weight,
+        params={"term_name": "action_rate", "weight": -0.005, "num_steps": 4500},
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
+        func=mdp.modify_reward_weight,
+        params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500},
     )
 
 
@@ -191,11 +217,11 @@ class CurriculumCfg:
 
 
 @configclass
-class ReachEnvCfg(ManagerBasedRLEnvCfg):
+class ReachWithCameraEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
 
     # Scene settings
-    scene: ReachSceneCfg = ReachSceneCfg(num_envs=4096, env_spacing=2.5)
+    scene: ReachSceneCfg = ReachWithCameraSceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
